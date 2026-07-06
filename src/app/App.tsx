@@ -178,7 +178,7 @@ function PieChart({ label, full }: { label: string; full: boolean }) {
 
 // ─── Page 1: Home Payments ────────────────────────────────────────────────────
 
-function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: () => void }) {
+function HomePaymentsPage({ onProductosYServicios, onCobrar }: { onProductosYServicios: () => void; onCobrar: () => void }) {
   return (
     <div className="backdrop-blur-[1px] bg-[#f7f8fb] relative size-full" data-name="Pagos">
       {/* APP Header */}
@@ -559,7 +559,7 @@ function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: ()
                 <p className="[word-break:break-word] font-['Montserrat:SemiBold',sans-serif] font-semibold leading-[16px] relative shrink-0 text-[#121e6c] text-[11px] text-center whitespace-nowrap">Ventas</p>
               </div>
               {/* Cobrar CTA */}
-              <div className="content-stretch flex h-full items-center justify-center relative shrink-0 w-[83.67px]">
+              <button onClick={onCobrar} className="content-stretch flex h-full items-center justify-center relative shrink-0 w-[83.67px] cursor-pointer">
                 <div className="bg-[#ff2947] flex-[1_0_0] h-full min-w-px relative rounded-[100px]">
                   <div className="flex flex-row items-center justify-center size-full">
                     <div className="content-stretch flex gap-[8px] items-center justify-center px-[20px] py-[12px] relative size-full">
@@ -569,7 +569,7 @@ function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: ()
                     </div>
                   </div>
                 </div>
-              </div>
+              </button>
               {/* Cuenta */}
               <div className="content-stretch flex flex-[1_0_0] flex-col gap-[2px] items-center min-w-px relative">
                 <div className="relative shrink-0 size-[24px]">
@@ -596,16 +596,19 @@ function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: ()
 // ─── Page 2: Home Productos y servicios ──────────────────────────────────────
 
 function HomeProductosPage({
+  products,
   onBack,
   onCreateProduct,
   onTusProductos,
   onCobrar,
 }: {
+  products: Product[];
   onBack: () => void;
   onCreateProduct: () => void;
   onTusProductos: () => void;
   onCobrar: () => void;
 }) {
+  const hasProducts = products.some(p => !p.isExample);
   return (
     <div className="bg-[#f7f8fb] relative size-full">
       {/* Header */}
@@ -657,26 +660,26 @@ function HomeProductosPage({
             </div>
           </div>
 
-          {/* ② Bloque 1/2 — "Crea un producto o servicio" */}
+          {/* ② Bloque progreso — 1/2 sin productos, 2/2 con productos */}
           <div className="bg-white content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
             <div className="content-stretch flex gap-[8px] items-center relative shrink-0 w-full">
               <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] items-start min-w-px relative">
                 <div className="[word-break:break-word] content-stretch flex flex-col gap-[8px] items-start relative shrink-0 text-[#1e1e1e] w-full">
                   <div className="flex flex-col font-['Montserrat:Bold',sans-serif] font-bold justify-center leading-[0] relative shrink-0 text-[14px] w-full">
-                    <p className="leading-[20px]">Crea un producto o servicio</p>
+                    <p className="leading-[20px]">{hasProducts ? "Cobra seleccionando tu producto" : "Crea un producto o servicio"}</p>
                   </div>
                   <p className="font-['Montserrat:Regular',sans-serif] font-normal leading-[16px] relative shrink-0 text-[12px] w-full">Cobra en segundos y visualiza los productos más vendidos</p>
                 </div>
               </div>
-              <PieChart label="1/2" full={false} />
+              <PieChart label={hasProducts ? "2/2" : "1/2"} full={hasProducts} />
             </div>
             <button
-              onClick={onCreateProduct}
+              onClick={hasProducts ? onCobrar : onCreateProduct}
               className="bg-[#f1f2f6] relative rounded-[12px] shrink-0 w-full cursor-pointer"
             >
               <div className="flex flex-row items-center justify-center size-full">
                 <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[12px] relative size-full">
-                  <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Crear producto o servicio</p>
+                  <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">{hasProducts ? "Cobrar con mis productos" : "Crear producto o servicio"}</p>
                 </div>
               </div>
             </button>
@@ -1279,70 +1282,246 @@ function SuccessSheet({
   );
 }
 
-// ─── Page 4: Flujo de cobro ───────────────────────────────────────────────────
+// ─── Page 4: Flujo de cobro (dos tabs: Monto | Productos) ────────────────────
 
 function CobroPage({
-  products, onBack,
+  products,
+  onBack,
+  defaultTab,
+  onCreateProduct,
 }: {
-  products: Product[]; onBack: () => void;
+  products: Product[];
+  onBack: () => void;
+  defaultTab: "monto" | "productos";
+  onCreateProduct: () => void;
 }) {
-  return (
-    <div className="bg-[#f7f8fb] relative size-full">
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
-        <StatusBar dark />
-        <div className="relative shrink-0 w-full">
-          <div className="flex flex-row justify-center size-full">
-            <div className="content-stretch flex items-start justify-between px-[12px] relative size-full">
-              <BackButton onPress={onBack} />
-              <div className="content-stretch flex flex-[1_0_0] items-center justify-center min-w-px relative self-stretch">
-                <p className="[word-break:break-word] flex-[1_0_0] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] min-w-px relative text-[#121e6c] text-[16px] text-center">Caja registradora</p>
-              </div>
-              <div className="relative shrink-0 size-[24px]" />
-            </div>
-          </div>
-        </div>
-      </div>
+  const [tab, setTab] = useState<"monto" | "productos">(defaultTab);
+  const [amount, setAmount] = useState("0");
+  const [cart, setCart] = useState<Record<string, boolean>>({});
 
-      <div className="absolute left-0 top-[76px] bottom-[96px] w-full overflow-y-auto">
-        <div className="py-[12px]">
-          <div className="content-stretch flex flex-col gap-[24px] items-center px-[16px]">
-            <div className="bg-white content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
-              <div className="content-stretch flex gap-[8px] items-center relative shrink-0 w-full">
-                <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] items-start min-w-px relative">
-                  <div className="[word-break:break-word] content-stretch flex flex-col gap-[8px] items-start relative shrink-0 text-[#1e1e1e] w-full">
-                    <div className="flex flex-col font-['Montserrat:Bold',sans-serif] font-bold justify-center leading-[0] relative shrink-0 text-[14px] w-full">
-                      <p className="leading-[20px]">Cobra seleccionando tu producto</p>
-                    </div>
-                    <p className="font-['Montserrat:Regular',sans-serif] font-normal leading-[16px] relative shrink-0 text-[12px] w-full">Cobra en segundos y visualiza los productos más vendidos</p>
-                  </div>
-                </div>
-                <PieChart label="2/2" full={true} />
-              </div>
-              <div className="bg-[#f1f2f6] relative rounded-[12px] shrink-0 w-full">
-                <div className="flex flex-row items-center justify-center size-full">
-                  <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[12px] relative size-full">
-                    <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Cobrar con mis productos</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            {products.map((p) => <ProductCard key={p.id} product={p} />)}
-          </div>
-        </div>
-      </div>
+  const hasRealProducts = products.some(p => !p.isExample);
 
-      <div className="absolute backdrop-blur-[1px] bottom-0 left-0 right-0 content-stretch flex flex-col items-center justify-center px-[16px] py-[24px]"
-        style={{ backgroundImage: "linear-gradient(0.637538deg, rgb(247,248,251) 35.923%, rgba(247,248,251,0) 98.003%)" }}>
-        <button className="bg-[#ff2947] h-[48px] relative rounded-[100px] shrink-0 w-full cursor-pointer">
-          <div className="flex flex-row items-center justify-center size-full">
-            <div className="content-stretch flex gap-[16px] items-center justify-center px-[16px] py-[12px] relative size-full">
-              <div className="[word-break:break-word] flex flex-col font-['Montserrat:Bold',sans-serif] font-bold justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white whitespace-nowrap">
-                <p className="leading-[20px]">Cobrar con mis productos</p>
-              </div>
-            </div>
-          </div>
+  const parsePrice = (price: string) =>
+    parseInt(price.replace(/\./g, "").replace(/[^0-9]/g, ""), 10) || 0;
+
+  const selected = products.filter(p => cart[p.id]);
+  const cartCount = selected.length;
+  const cartTotal = selected.reduce((s, p) => s + parsePrice(p.price), 0);
+
+  const formatCOP = (n: number) => "$" + n.toLocaleString("es-CO");
+  const displayAmount = formatCOP(parseInt(amount, 10) || 0);
+
+  const handleDigit = (d: string) =>
+    setAmount(prev => prev === "0" ? d : prev.length < 10 ? prev + d : prev);
+  const handleErase = () =>
+    setAmount(prev => prev.length <= 1 ? "0" : prev.slice(0, -1));
+  const toggleCart = (id: string) =>
+    setCart(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const pill = (
+    <div className={`flex gap-[4px] items-center rounded-[100px] px-[4px] py-[4px] w-[205px] ${tab === "monto" ? "bg-[#f7f8fb]" : "bg-white"}`}>
+      {(["monto", "productos"] as const).map(t => (
+        <button
+          key={t}
+          onClick={() => setTab(t)}
+          className={`flex flex-1 items-center justify-center px-[12px] py-[8px] rounded-[100px] ${tab === t ? "bg-[#121e6c] drop-shadow-[0px_4px_6px_rgba(18,30,108,0.08)]" : ""}`}
+        >
+          <span className={`text-[14px] leading-[20px] ${tab === t ? "font-['Montserrat:Bold',sans-serif] font-bold text-white" : "font-['Montserrat:Regular',sans-serif] font-normal text-[#121e6c]"}`}>
+            {t === "monto" ? "Monto" : "Productos"}
+          </span>
         </button>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className={`flex flex-col size-full ${tab === "monto" ? "bg-white" : "bg-[#f7f8fb]"}`}>
+
+      {/* ── Header ── */}
+      <div className="flex-none flex flex-col gap-[12px] pb-[16px]">
+        <StatusBar />
+        <div className="flex items-center justify-between px-[16px] h-[40px]">
+          <BackButton onPress={onBack} />
+          {pill}
+          {tab === "monto" ? (
+            <div className="bg-[#f4fdf9] flex h-[28px] w-[48px] items-center justify-center rounded-[100px] shrink-0">
+              <svg viewBox="0 0 20 20" className="size-[20px]" fill="none">
+                <circle cx="10" cy="10" r="3.5" fill="#6CDCAB" />
+                <circle cx="10" cy="10" r="7" stroke="#6CDCAB" strokeWidth="1.5" opacity="0.4" fill="none" />
+              </svg>
+            </div>
+          ) : (
+            <div className="relative size-[24px]">
+              <svg viewBox="0 0 24 24" className="size-full" fill="none">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="#121E6C" strokeWidth="1.5" strokeLinejoin="round" />
+                <line x1="3" y1="6" x2="21" y2="6" stroke="#121E6C" strokeWidth="1.5" />
+                <path d="M16 10a4 4 0 01-8 0" stroke="#121E6C" strokeWidth="1.5" />
+              </svg>
+              {cartCount > 0 && (
+                <div className="absolute -top-[4px] -right-[4px] bg-[#ff2947] rounded-full size-[14px] flex items-center justify-center">
+                  <span className="font-['Montserrat:Bold',sans-serif] font-bold text-white" style={{ fontSize: 8 }}>{cartCount}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {tab === "productos" && (
+          <div className="flex gap-[16px] items-center px-[16px]">
+            <div className="flex-1 bg-white h-[40px] rounded-[30px] flex items-center gap-[12px] px-[12px]">
+              <svg viewBox="0 0 20 20" className="shrink-0 size-[20px]" fill="none">
+                <path clipRule="evenodd" d="M9 2a7 7 0 100 14A7 7 0 009 2zM2 9a7 7 0 1112.452 4.391l3.328 3.329a1 1 0 11-1.414 1.414l-3.329-3.328A7 7 0 012 9z" fill="#606060" fillRule="evenodd" />
+              </svg>
+              <span className="font-['Montserrat:Light',sans-serif] font-light text-[14px] text-[#606060]">Buscar</span>
+            </div>
+            <button onClick={onCreateProduct} className="flex items-center gap-[4px] h-[40px] cursor-pointer">
+              <svg viewBox="0 0 24 24" className="size-[16px]" fill="none">
+                <path d="M12 5v14M5 12h14" stroke="#121E6C" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[12px] text-[#121e6c] underline">Nuevo</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* ── TAB MONTO ── */}
+      {tab === "monto" && (
+        <>
+          <div className="flex-1 flex flex-col items-center">
+            <div className="flex items-center justify-center h-[56px] mt-[8px]">
+              <span className="font-['Montserrat:Light',sans-serif] font-light text-[52px] leading-none text-[#1e1e1e] whitespace-nowrap">
+                {displayAmount}
+              </span>
+            </div>
+            <div className="flex items-center justify-center mt-[16px]">
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[12px] text-[#babdd3] underline">Describe tu venta</span>
+            </div>
+            <div className="flex gap-[12px] items-center mt-[20px]">
+              <div className="bg-white drop-shadow-[0px_4px_4px_rgba(18,30,108,0.04)] flex items-center justify-center px-[16px] py-[6px] rounded-[100px]">
+                <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#d2d4e1] whitespace-nowrap">Con impuesto</span>
+              </div>
+              <div className="bg-white drop-shadow-[0px_4px_4px_rgba(18,30,108,0.04)] flex items-center justify-center px-[16px] py-[6px] rounded-[100px]">
+                <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#d2d4e1] whitespace-nowrap">Sin impuesto</span>
+              </div>
+            </div>
+            <div className="mt-[28px] grid grid-cols-3 gap-x-[24px] gap-y-[16px]">
+              {(["1","2","3","4","5","6","7","8","9","00","0","⌫"] as const).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => key === "⌫" ? handleErase() : handleDigit(key)}
+                  className="bg-[#f7f8fb] flex items-center justify-center rounded-[16px] h-[48px] w-[80px] cursor-pointer"
+                >
+                  {key === "⌫" ? (
+                    <svg viewBox="0 0 24 24" className="size-[20px]" fill="none">
+                      <path d="M9 3H19a2 2 0 012 2v14a2 2 0 01-2 2H9l-7-9 7-9z" stroke="#121E6C" strokeWidth="1.5" strokeLinejoin="round" />
+                      <path d="M14 9l-4 6M10 9l4 6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[16px] leading-[24px] text-[#121e6c]">{key}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex-none px-[16px] pb-[24px] pt-[12px]" style={{ backgroundImage: "linear-gradient(0deg, white 70%, rgba(255,255,255,0) 100%)" }}>
+            <button
+              className={`w-full h-[48px] rounded-[100px] font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white uppercase tracking-wide ${amount !== "0" ? "bg-[#ff2947] cursor-pointer" : "bg-[#f59fa5] cursor-not-allowed"}`}
+            >
+              CONTINUAR
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── TAB PRODUCTOS ── */}
+      {tab === "productos" && (
+        <>
+          <div className="flex-1 overflow-y-auto py-[12px]">
+            <div className="flex flex-col gap-[12px] items-center px-[16px]">
+
+              {/* Feedback card */}
+              <div className="bg-white content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[16px] w-full max-w-[343px]">
+                <div className="content-stretch flex gap-[8px] items-center relative shrink-0 w-full">
+                  <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] items-start min-w-px relative">
+                    <div className="[word-break:break-word] content-stretch flex flex-col gap-[8px] items-start relative shrink-0 text-[#1e1e1e] w-full">
+                      <div className="flex flex-col font-['Montserrat:Bold',sans-serif] font-bold justify-center leading-[0] relative shrink-0 text-[14px] w-full">
+                        <p className="leading-[20px]">{hasRealProducts ? "Cobra seleccionando tu producto" : "Crea un producto o servicio"}</p>
+                      </div>
+                      <p className="font-['Montserrat:Regular',sans-serif] font-normal leading-[16px] relative shrink-0 text-[12px] w-full">Cobra en segundos y visualiza los productos más vendidos</p>
+                    </div>
+                  </div>
+                  <PieChart label={hasRealProducts ? "2/2" : "1/2"} full={hasRealProducts} />
+                </div>
+                <button
+                  onClick={onCreateProduct}
+                  className="bg-[#f1f2f6] relative rounded-[12px] shrink-0 w-full cursor-pointer"
+                >
+                  <div className="flex flex-row items-center justify-center size-full">
+                    <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[12px] relative size-full">
+                      <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Crear producto o servicio</p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Lista de productos */}
+              {products.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => toggleCart(p.id)}
+                  className={`bg-white content-stretch drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-center p-[12px] relative rounded-[16px] w-full max-w-[343px] text-left cursor-pointer ${cart[p.id] ? "ring-2 ring-[#ff2947]" : ""}`}
+                >
+                  {p.hasPhoto ? (
+                    <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 size-[96px]">
+                      <img alt={p.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
+                    </div>
+                  ) : (
+                    <ShoppingBagIllustration />
+                  )}
+                  <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
+                    <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-full items-start justify-center min-w-px relative">
+                      <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[12px] items-start leading-[0] min-h-px relative text-[#1e1e1e] w-full">
+                        <div className="flex flex-col font-['Montserrat:Regular',sans-serif] font-normal justify-center relative shrink-0 text-[12px] w-full">
+                          <p className="leading-[16px]">{p.name}</p>
+                        </div>
+                        <div className="flex flex-col font-['Montserrat:Medium',sans-serif] font-medium justify-center relative shrink-0 text-[14px] whitespace-nowrap">
+                          <p className="leading-[20px]">{p.price.startsWith("$") ? p.price : "$" + p.price}</p>
+                        </div>
+                      </div>
+                      <ActiveBadge />
+                    </div>
+                  </div>
+                  {cart[p.id] && (
+                    <div className="absolute right-[12px] top-[12px] bg-[#ff2947] rounded-full size-[20px] flex items-center justify-center">
+                      <svg viewBox="0 0 12 10" className="size-[10px]" fill="none">
+                        <path d="M1 5l3 4 7-8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="flex-none flex items-center gap-[12px] px-[16px] py-[16px] backdrop-blur-[6px]"
+            style={{ background: "rgba(247,248,251,0.95)" }}>
+            <div className="flex-1 flex flex-col gap-[2px]">
+              <span className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">
+                {cartCount} {cartCount === 1 ? "Producto" : "Productos"}
+              </span>
+              <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[16px] text-[#1e1e1e] leading-[20px]">
+                {formatCOP(cartTotal)}
+              </span>
+            </div>
+            <button
+              className={`flex items-center justify-center w-[140px] h-[48px] rounded-[100px] font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white ${cartCount > 0 ? "bg-[#ff2947] cursor-pointer" : "bg-[#ffb2bc] cursor-not-allowed"}`}
+            >
+              Cobrar
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1582,6 +1761,8 @@ const SEED_PRODUCTS: Product[] = [
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>("home-payments");
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
+  const [cobroDefaultTab, setCobroDefaultTab] = useState<"monto" | "productos">("monto");
+  const [cobroBackScreen, setCobroBackScreen] = useState<AppScreen>("home-productos");
   const [showSuccess, setShowSuccess] = useState(false);
   const [celebrateFirst, setCelebrateFirst] = useState(false);
   const [lastCreated, setLastCreated] = useState<Product | null>(null);
@@ -1641,6 +1822,12 @@ export default function App() {
     setScreen("tus-productos");
   };
 
+  const navigateToCobro = (tab: "monto" | "productos", backScreen: AppScreen) => {
+    setCobroDefaultTab(tab);
+    setCobroBackScreen(backScreen);
+    setScreen("cobro");
+  };
+
   return (
     <div className="fixed inset-0 overflow-hidden bg-white">
       <div
@@ -1653,14 +1840,16 @@ export default function App() {
         {screen === "home-payments" && (
           <HomePaymentsPage
             onProductosYServicios={() => setScreen("home-productos")}
+            onCobrar={() => navigateToCobro("monto", "home-payments")}
           />
         )}
         {screen === "home-productos" && (
           <HomeProductosPage
+            products={products}
             onBack={() => setScreen("home-payments")}
             onCreateProduct={goToCreate}
             onTusProductos={() => setScreen("tus-productos")}
-            onCobrar={() => setScreen("cobro")}
+            onCobrar={() => navigateToCobro("productos", "home-productos")}
           />
         )}
         {screen === "tus-productos" && (
@@ -1668,7 +1857,7 @@ export default function App() {
             products={products}
             onBack={() => setScreen("home-productos")}
             onCreateProduct={goToCreate}
-            onContinueToCobro={() => setScreen("cobro")}
+            onContinueToCobro={() => navigateToCobro("productos", "tus-productos")}
             onViewProduct={viewProduct}
           />
         )}
@@ -1708,7 +1897,9 @@ export default function App() {
         {screen === "cobro" && (
           <CobroPage
             products={products}
-            onBack={() => setScreen("tus-productos")}
+            onBack={() => setScreen(cobroBackScreen)}
+            defaultTab={cobroDefaultTab}
+            onCreateProduct={goToCreate}
           />
         )}
       </div>
