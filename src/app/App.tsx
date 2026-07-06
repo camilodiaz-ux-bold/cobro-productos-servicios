@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import confetti from "canvas-confetti";
 import svgE1 from "../imports/EmptyState1/svg-4pwqqtr0t8";
 import svgE1_1 from "../imports/EmptyState1-1/svg-7h6w0w4nn3";
 import svgCP from "../imports/CreateProduct/svg-8vda8388u0";
@@ -1255,13 +1256,30 @@ function CreateProductPage({
 // ─── Success bottom sheet ─────────────────────────────────────────────────────
 
 function SuccessSheet({
-  product, onContinue, onCreateAnother,
+  product, celebrate = false, onContinue, onCreateAnother,
 }: {
-  product: Product; onContinue: () => void; onCreateAnother: () => void;
+  product: Product; celebrate?: boolean; onContinue: () => void; onCreateAnother: () => void;
 }) {
   const displayPrice = product.price.startsWith("$") ? product.price : "$" + product.price;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Confeti: se dispara una sola vez al aparecer el modal del primer producto.
+  // Se limpia al cerrar (unmount) para no dejar el efecto corriendo.
+  useEffect(() => {
+    if (!celebrate || !canvasRef.current) return;
+    const fire = confetti.create(canvasRef.current, { resize: true, useWorker: true });
+    const timer = window.setTimeout(() => {
+      fire({ particleCount: 140, spread: 80, startVelocity: 42, origin: { y: 0.45 }, ticks: 220 });
+    }, 150);
+    return () => {
+      window.clearTimeout(timer);
+      fire.reset();
+    };
+  }, [celebrate]);
+
   return (
     <div className="-translate-x-1/2 absolute bg-[rgba(30,30,30,0.7)] bottom-0 flex flex-col h-full items-center justify-end left-1/2 overflow-clip w-[375px]">
+      {celebrate && <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none size-full z-10" />}
       <div className="bg-white drop-shadow-[0px_-4px_4px_rgba(0,0,0,0.12)] relative rounded-tl-[32px] rounded-tr-[32px] shrink-0 w-full">
         <div className="flex flex-col items-center justify-end size-full">
           <div className="content-stretch flex flex-col gap-[16px] items-center justify-end pb-[20px] pt-[12px] px-[16px] relative size-full">
@@ -1274,7 +1292,13 @@ function SuccessSheet({
             </div>
             <p className="[word-break:break-word] font-['Montserrat:Regular',sans-serif] font-normal leading-[20px] relative shrink-0 text-[#1e1e1e] text-[14px] text-center w-full">Ahora podrás seleccionarlo desde el cobro para vender de forma más ágil.</p>
             <div className="bg-[#f7f8fb] content-stretch flex flex-col gap-[16px] items-center overflow-clip p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
-              <ShoppingBagIllustration size={112} />
+              {product.hasPhoto ? (
+                <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 size-[112px]">
+                  <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
+                </div>
+              ) : (
+                <ShoppingBagIllustration size={112} />
+              )}
               <div className="content-stretch flex flex-col gap-[4px] items-center relative shrink-0 w-full">
                 <div className="[word-break:break-word] flex flex-col font-['Montserrat:Regular',sans-serif] font-normal justify-center leading-[0] relative shrink-0 text-[#1e1e1e] text-[12px] text-center w-full">
                   <p className="leading-[16px]">{product.name}</p>
@@ -1606,6 +1630,7 @@ export default function App() {
   const [screen, setScreen] = useState<AppScreen>("home-payments");
   const [products, setProducts] = useState<Product[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [celebrateFirst, setCelebrateFirst] = useState(false);
   const [lastCreated, setLastCreated] = useState<Product | null>(null);
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
@@ -1623,9 +1648,11 @@ export default function App() {
       setEditingProductId(null);
       setScreen("product-detail");
     } else {
+      const isFirstProduct = products.length === 0;
       const product: Product = { id: Date.now().toString(), name, price, hasPhoto };
       setProducts((prev) => [...prev, product]);
       setLastCreated(product);
+      setCelebrateFirst(isFirstProduct);
       setShowSuccess(true);
     }
   };
@@ -1695,8 +1722,9 @@ export default function App() {
             {showSuccess && lastCreated && (
               <SuccessSheet
                 product={lastCreated}
-                onContinue={() => { setShowSuccess(false); setScreen("tus-productos"); }}
-                onCreateAnother={() => { setShowSuccess(false); setFormName(""); setFormPrice(""); setFormHasPhoto(false); }}
+                celebrate={celebrateFirst}
+                onContinue={() => { setShowSuccess(false); setCelebrateFirst(false); setScreen("tus-productos"); }}
+                onCreateAnother={() => { setShowSuccess(false); setCelebrateFirst(false); setFormName(""); setFormPrice(""); setFormHasPhoto(false); }}
               />
             )}
           </>
