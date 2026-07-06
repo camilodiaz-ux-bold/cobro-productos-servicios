@@ -13,7 +13,7 @@ import imgCard1 from "../imports/Pagos-1/bfb4d0e5d42f0a85a652d9f2b3f840dc2ef1a0a
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Product { id: string; name: string; price: string; hasPhoto?: boolean; }
+interface Product { id: string; name: string; price: string; hasPhoto?: boolean; isExample?: boolean; }
 
 type AppScreen = "home-payments" | "home-productos" | "tus-productos" | "create-product" | "product-detail" | "cobro";
 
@@ -836,7 +836,7 @@ function TusProductosPage({
   onContinueToCobro: () => void;
   onViewProduct: (p: Product) => void;
 }) {
-  const hasProducts = products.length > 0;
+  const hasProducts = products.some(p => !p.isExample);
   return (
     <div className="bg-[#f7f8fb] relative size-full">
       {/* Header */}
@@ -939,8 +939,6 @@ function TusProductosPage({
               </button>
             </div>
             {products.map((p) => <ProductCard key={p.id} product={p} onClick={() => onViewProduct(p)} />)}
-            <GhostProductCard name="Producto de ejemplo" price="$25.000" />
-            <GhostProductCard name="Servicio de ejemplo" price="$50.000" />
           </div>
         </div>
       </div>
@@ -1349,8 +1347,6 @@ function CobroPage({
               </div>
             </div>
             {products.map((p) => <ProductCard key={p.id} product={p} />)}
-            <GhostProductCard name="Producto de ejemplo" price="$25.000" />
-            <GhostProductCard name="Servicio de ejemplo" price="$50.000" />
           </div>
         </div>
       </div>
@@ -1378,11 +1374,13 @@ function ProductDetailPage({
   onBack,
   onEdit,
   onClose,
+  onDelete,
 }: {
   product: Product;
   onBack: () => void;
   onEdit: () => void;
   onClose: () => void;
+  onDelete: () => void;
 }) {
   const displayPrice = product.price.startsWith("$") ? product.price : "$" + product.price;
 
@@ -1440,7 +1438,7 @@ function ProductDetailPage({
             {/* Eliminar / Editar */}
             <div className="content-stretch flex gap-[12px] items-start relative shrink-0 w-full">
               {/* Eliminar */}
-              <div className="bg-[#f1f2f6] flex-[1_0_0] h-[40px] min-w-px relative rounded-[12px]">
+              <button onClick={onDelete} className="bg-[#f1f2f6] flex-[1_0_0] h-[40px] min-w-px relative rounded-[12px] cursor-pointer">
                 <div className="flex flex-row items-center justify-center size-full">
                   <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[8px] relative size-full">
                     <div className="relative shrink-0 size-[24px]">
@@ -1458,7 +1456,7 @@ function ProductDetailPage({
                     <p className="[word-break:break-word] font-['Montserrat:Semibold',sans-serif] leading-[20px] not-italic relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Eliminar</p>
                   </div>
                 </div>
-              </div>
+              </button>
               {/* Editar */}
               <button
                 onClick={onEdit}
@@ -1596,9 +1594,14 @@ function ProductDetailPage({
 
 // ─── App root ─────────────────────────────────────────────────────────────────
 
+const SEED_PRODUCTS: Product[] = [
+  { id: "example-1", name: "Producto de ejemplo", price: "25.000", isExample: true },
+  { id: "example-2", name: "Servicio de ejemplo", price: "50.000", isExample: true },
+];
+
 export default function App() {
   const [screen, setScreen] = useState<AppScreen>("home-payments");
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
   const [showSuccess, setShowSuccess] = useState(false);
   const [celebrateFirst, setCelebrateFirst] = useState(false);
   const [lastCreated, setLastCreated] = useState<Product | null>(null);
@@ -1618,11 +1621,14 @@ export default function App() {
       setEditingProductId(null);
       setScreen("product-detail");
     } else {
-      const isFirstProduct = products.length === 0;
+      const isFirstReal = !products.some(p => !p.isExample);
       const product: Product = { id: Date.now().toString(), name, price, hasPhoto };
-      setProducts((prev) => [...prev, product]);
+      setProducts((prev) => {
+        const base = isFirstReal ? prev.filter(p => !p.isExample) : prev;
+        return [...base, product];
+      });
       setLastCreated(product);
-      setCelebrateFirst(isFirstProduct);
+      setCelebrateFirst(isFirstReal);
       setShowSuccess(true);
     }
   };
@@ -1648,6 +1654,11 @@ export default function App() {
   const viewProduct = (product: Product) => {
     setSelectedProduct(product);
     setScreen("product-detail");
+  };
+
+  const deleteProduct = (productId: string) => {
+    setProducts((prev) => prev.filter(p => p.id !== productId));
+    setScreen("tus-productos");
   };
 
   return (
@@ -1711,6 +1722,7 @@ export default function App() {
             onBack={() => setScreen("tus-productos")}
             onEdit={() => goToEdit(selectedProduct)}
             onClose={() => setScreen("tus-productos")}
+            onDelete={() => deleteProduct(selectedProduct.id)}
           />
         )}
         {screen === "cobro" && (
