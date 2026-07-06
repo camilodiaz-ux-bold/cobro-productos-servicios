@@ -19,40 +19,10 @@ type AppScreen = "home-payments" | "home-productos" | "tus-productos" | "create-
 
 // ─── Shared atoms ─────────────────────────────────────────────────────────────
 
-function StatusBar({ dark = false }: { dark?: boolean }) {
-  const c = dark ? "#121E6C" : "#1E1E1E";
-  return (
-    <div className="h-[20px] overflow-clip relative shrink-0 w-full">
-      <div className="-translate-y-1/2 absolute h-[11.5px] right-[5.5px] top-[calc(50%+0.25px)] w-[26.5px]">
-        <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 26.5 11.5">
-          <path d={svgE1.p2e31dc00} fill={c} opacity="0.4" />
-          <path clipRule="evenodd" d={svgE1.p14ba0000} fill={c} fillRule="evenodd" />
-        </svg>
-      </div>
-      <div className="absolute inset-[0_25.6%_0_25.87%] overflow-clip">
-        <p className="-translate-x-1/2 [word-break:break-word] absolute font-['Roboto:SemiBold',sans-serif] font-semibold leading-[normal] left-[calc(50%+0.51px)] text-[12px] text-center top-[calc(50%-7px)] w-[49px]"
-          style={{ color: c, fontVariationSettings: '"wdth" 100' }}>
-          1:11 PM
-        </p>
-      </div>
-      <div className="-translate-y-1/2 absolute h-[14px] left-[5px] overflow-clip top-1/2 w-[83px]">
-        <div className="absolute inset-[14.29%_79.52%_14.29%_0]">
-          <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 17 10">
-            <path clipRule="evenodd" d={svgE1.p56b4e80} fill={c} fillRule="evenodd" />
-          </svg>
-        </div>
-        <div className="absolute inset-[7.14%_0.88%_14.53%_80.72%]">
-          <svg className="absolute block inset-0 size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 15.2724 10.9656">
-            <path clipRule="evenodd" d={svgE1.p3d0e09f2} fill={c} fillRule="evenodd" />
-          </svg>
-        </div>
-        <p className="[word-break:break-word] absolute font-['Roboto:Regular',sans-serif] font-normal leading-[normal] left-[calc(50%-20.5px)] text-[12px] top-[calc(50%-7px)] tracking-[-0.0167px] whitespace-nowrap"
-          style={{ color: c, fontVariationSettings: '"wdth" 100' }}>
-          Carrier
-        </p>
-      </div>
-    </div>
-  );
+// StatusBar is hidden on real devices — the system status bar handles this.
+// The component is kept as a stub to avoid changing all call sites.
+function StatusBar({ dark: _dark = false }: { dark?: boolean }) {
+  return null;
 }
 
 function ChevronSvg({ color = "#121E6C" }: { color?: string }) {
@@ -232,8 +202,8 @@ function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: ()
   return (
     <div className="backdrop-blur-[1px] bg-[#f7f8fb] relative size-full" data-name="Pagos">
       {/* APP Header */}
-      <div className="absolute content-stretch flex flex-col gap-[16px] items-center left-0 pb-[12px] rounded-bl-[24px] rounded-br-[24px] top-0 w-[390px]">
-        <div className="h-[20px] overflow-clip relative shrink-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[16px] items-center left-0 pb-[12px] rounded-bl-[24px] rounded-br-[24px] top-0 w-full">
+        <div className="shrink-0 w-full">
           <StatusBar />
         </div>
         {/* Menu */}
@@ -589,7 +559,7 @@ function HomePaymentsPage({ onProductosYServicios }: { onProductosYServicios: ()
       </div>
 
       {/* Bottom nav */}
-      <div className="absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center left-0 pb-[24px] pt-[20px] px-[20px] w-[390px]"
+      <div className="absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center left-0 pb-[24px] pt-[20px] px-[20px] w-full"
         style={{ backgroundImage: "linear-gradient(0.500163deg, rgb(247,248,251) 50.064%, rgba(247,248,251,0) 98.508%)" }}>
         <div className="h-[62px] relative rounded-[100px] shrink-0 w-full">
           <div aria-hidden className="absolute backdrop-blur-[6px] inset-0 pointer-events-none rounded-[100px]"
@@ -659,7 +629,7 @@ function HomeProductosPage({
   return (
     <div className="bg-[#f7f8fb] relative size-full">
       {/* Header */}
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
         <StatusBar dark />
         <div className="relative shrink-0 w-full">
           <div className="flex flex-row justify-center size-full">
@@ -675,7 +645,7 @@ function HomeProductosPage({
       </div>
 
       {/* Scrollable body */}
-      <div className="absolute left-0 top-[76px] bottom-[96px] w-[375px] overflow-y-auto">
+      <div className="absolute left-0 top-[76px] bottom-[96px] w-full overflow-y-auto">
         <div className="content-stretch flex flex-col gap-[24px] items-center px-[16px] py-[12px]">
 
           {/* ① Bloque + — Crear producto o servicio */}
@@ -832,7 +802,7 @@ function HomeProductosPage({
       </div>
 
       {/* ⑤ Bottom CTA fijo */}
-      <div className="absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center justify-center left-0 px-[16px] py-[24px] w-[375px]"
+      <div className="absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center justify-center left-0 px-[16px] py-[24px] w-full"
         style={{ backgroundImage: "linear-gradient(0.637538deg, rgb(247,248,251) 35.923%, rgba(247,248,251,0) 98.003%)" }}>
         <button
           onClick={onCobrar}
@@ -870,7 +840,7 @@ function TusProductosPage({
   return (
     <div className="bg-[#f7f8fb] relative size-full">
       {/* Header */}
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
         <StatusBar />
         <div className="relative shrink-0 w-full">
           <div className="flex flex-row justify-center size-full">
@@ -939,7 +909,7 @@ function TusProductosPage({
       </div>
 
       {/* Scrollable content */}
-      <div className="absolute left-0 top-[152px] bottom-[88px] w-[375px] overflow-y-auto">
+      <div className="absolute left-0 top-[152px] bottom-[88px] w-full overflow-y-auto">
         <div className="py-[12px]">
           <div className="flex flex-col items-center gap-[12px] px-[16px]">
             {/* Feedback card */}
@@ -976,7 +946,7 @@ function TusProductosPage({
       </div>
 
       {/* Bottom CTA */}
-      <div className="-translate-x-1/2 absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center justify-center left-1/2 px-[16px] py-[20px] w-[375px]"
+      <div className="absolute backdrop-blur-[1px] bottom-0 left-0 right-0 content-stretch flex flex-col items-center justify-center px-[16px] py-[20px]"
         style={{ backgroundImage: "linear-gradient(0.584414deg, rgb(247,248,251) 35.923%, rgba(247,248,251,0) 98.003%)" }}>
         <button onClick={onCreateProduct} className="bg-[#ff2947] h-[48px] relative rounded-[100px] shrink-0 w-full cursor-pointer">
           <div className="flex flex-row items-center justify-center size-full">
@@ -1011,7 +981,7 @@ function CreateProductPage({
   const isValid = formName.trim().length > 0 && formPrice.trim().length > 0;
   return (
     <div className="bg-[#f7f8fb] relative size-full">
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
         <StatusBar />
         <div className="relative shrink-0 w-full">
           <div className="flex flex-row justify-center size-full">
@@ -1278,7 +1248,7 @@ function SuccessSheet({
   }, [celebrate]);
 
   return (
-    <div className="-translate-x-1/2 absolute bg-[rgba(30,30,30,0.7)] bottom-0 flex flex-col h-full items-center justify-end left-1/2 overflow-clip w-[375px]">
+    <div className="absolute inset-0 bg-[rgba(30,30,30,0.7)] flex flex-col items-center justify-end overflow-clip">
       {celebrate && <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none size-full z-10" />}
       <div className="bg-white drop-shadow-[0px_-4px_4px_rgba(0,0,0,0.12)] relative rounded-tl-[32px] rounded-tr-[32px] shrink-0 w-full">
         <div className="flex flex-col items-center justify-end size-full">
@@ -1340,7 +1310,7 @@ function CobroPage({
 }) {
   return (
     <div className="bg-[#f7f8fb] relative size-full">
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
         <StatusBar dark />
         <div className="relative shrink-0 w-full">
           <div className="flex flex-row justify-center size-full">
@@ -1355,7 +1325,7 @@ function CobroPage({
         </div>
       </div>
 
-      <div className="absolute left-0 top-[76px] bottom-[96px] w-[375px] overflow-y-auto">
+      <div className="absolute left-0 top-[76px] bottom-[96px] w-full overflow-y-auto">
         <div className="py-[12px]">
           <div className="content-stretch flex flex-col gap-[24px] items-center px-[16px]">
             <div className="bg-white content-stretch flex flex-col gap-[16px] items-start p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
@@ -1385,7 +1355,7 @@ function CobroPage({
         </div>
       </div>
 
-      <div className="absolute backdrop-blur-[1px] bottom-0 content-stretch flex flex-col items-center justify-center left-0 px-[16px] py-[24px] w-[375px]"
+      <div className="absolute backdrop-blur-[1px] bottom-0 left-0 right-0 content-stretch flex flex-col items-center justify-center px-[16px] py-[24px]"
         style={{ backgroundImage: "linear-gradient(0.637538deg, rgb(247,248,251) 35.923%, rgba(247,248,251,0) 98.003%)" }}>
         <button className="bg-[#ff2947] h-[48px] relative rounded-[100px] shrink-0 w-full cursor-pointer">
           <div className="flex flex-row items-center justify-center size-full">
@@ -1419,7 +1389,7 @@ function ProductDetailPage({
   return (
     <div className="bg-[#f7f8fb] relative size-full">
       {/* Header */}
-      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-[375px]">
+      <div className="absolute content-stretch flex flex-col gap-[20px] items-center left-0 pb-[16px] top-0 w-full">
         <StatusBar />
         <div className="relative shrink-0 w-full">
           <div className="flex flex-row justify-center size-full">
@@ -1681,8 +1651,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e5e7eb] flex items-center justify-center p-4">
-      <div className="relative w-[375px] h-[812px] overflow-hidden rounded-[44px] shadow-2xl bg-white ring-1 ring-black/10">
+    <div className="fixed inset-0 overflow-hidden bg-white">
+      <div
+        className="absolute left-0 right-0 overflow-hidden"
+        style={{
+          top: 'env(safe-area-inset-top, 0px)',
+          bottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
+      >
         {screen === "home-payments" && (
           <HomePaymentsPage
             onProductosYServicios={() => setScreen("home-productos")}
@@ -1747,3 +1723,4 @@ export default function App() {
     </div>
   );
 }
+
