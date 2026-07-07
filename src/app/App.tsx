@@ -8,6 +8,7 @@ import svgProds from "../imports/UiSeccionCobroConCatalogo-2/svg-nr9b7t4r4u";
 import svgCashReg from "../imports/IconFillIcSale/svg-kot07dyito";
 import svgPV from "../imports/ProductVisualizacion/svg-pi74w8qury";
 import imgSneaker from "../imports/ProductVisualizacion/f92cde031c4a218992de87f81f773a3859c8498a.png";
+import imgRectangle from "../assets/Rectangle.png";
 import imgCard from "../imports/Pagos-1/5a728c2f6078cde80c55091bf9f2eb0eeb24968a.png";
 import imgCard1 from "../imports/Pagos-1/bfb4d0e5d42f0a85a652d9f2b3f840dc2ef1a0a7.png";
 
@@ -106,7 +107,13 @@ function WaterBottleIllustration({ size = 96 }: { size?: number }) {
 
 function ProductPhoto({ product, size = 96 }: { product: Product; size?: number }) {
   if (!product.hasPhoto) return <ShoppingBagIllustration size={size} />;
-  if (product.photoType === "water-bottle") return <WaterBottleIllustration size={size} />;
+  if (product.photoType === "water-bottle") {
+    return (
+      <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 overflow-hidden" style={{ width: size, height: size }}>
+        <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgRectangle} />
+      </div>
+    );
+  }
   return (
     <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0" style={{ width: size, height: size }}>
       <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
@@ -1561,7 +1568,8 @@ function CobroPage({
                 return (
                   <div
                     key={p.id}
-                    className={`bg-white drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-start p-[12px] relative rounded-[16px] w-full max-w-[343px] ${isSelected ? "border border-[#ff2947]" : ""}`}
+                    onClick={() => { if (!isSelected) addToCart(p.id); }}
+                    className={`bg-white drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-start p-[12px] relative rounded-[16px] w-full max-w-[343px] ${isSelected ? "border border-[#ff2947]" : "cursor-pointer"}`}
                   >
                     {/* Product image with heart badge */}
                     <div className="relative shrink-0">
@@ -1570,9 +1578,9 @@ function CobroPage({
                           <ProductPhoto product={p} size={72} />
                         </div>
                       </div>
-                      {/* Heart badge */}
+                      {/* Heart badge — stopPropagation para no agregar al carrito */}
                       <button
-                        onClick={() => setFavorites(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                        onClick={(e) => { e.stopPropagation(); setFavorites(prev => ({ ...prev, [p.id]: !prev[p.id] })); }}
                         className="absolute left-[6px] top-[6px] backdrop-blur-[2px] bg-[rgba(255,255,255,0.5)] p-[4px] rounded-[8px] size-[28px] flex items-center justify-center cursor-pointer"
                       >
                         <svg viewBox="0 0 20 18" className="size-[16px]" fill="none">
@@ -1638,20 +1646,9 @@ function CobroPage({
                           </div>
                         </>
                       ) : (
-                        <>
-                          <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px] whitespace-nowrap">
-                            {formatCOP(unitPrice)}
-                          </p>
-                          {/* Tap to add */}
-                          <button
-                            onClick={() => addToCart(p.id)}
-                            className="bg-[#f7f8fb] flex items-center justify-center rounded-[100px] size-[28px] cursor-pointer"
-                          >
-                            <svg viewBox="0 0 16 16" className="size-[14px]" fill="none">
-                              <path d="M8 1v14M1 8h14" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
-                            </svg>
-                          </button>
-                        </>
+                        <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px] whitespace-nowrap">
+                          {formatCOP(unitPrice)}
+                        </p>
                       )}
                     </div>
                   </div>
