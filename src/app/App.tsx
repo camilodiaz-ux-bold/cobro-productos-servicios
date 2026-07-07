@@ -2619,7 +2619,7 @@ export default function App() {
   };
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-white">
+    <div className="absolute inset-0 overflow-hidden bg-white">
       <div
         className="absolute left-0 right-0 overflow-hidden"
         style={{
