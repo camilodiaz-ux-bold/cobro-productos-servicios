@@ -13,7 +13,7 @@ import imgCard1 from "../imports/Pagos-1/bfb4d0e5d42f0a85a652d9f2b3f840dc2ef1a0a
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Product { id: string; name: string; price: string; hasPhoto?: boolean; isExample?: boolean; }
+interface Product { id: string; name: string; price: string; hasPhoto?: boolean; photoType?: "water-bottle"; isExample?: boolean; }
 
 type AppScreen = "home-payments" | "home-productos" | "tus-productos" | "create-product" | "product-detail" | "cobro";
 
@@ -77,6 +77,39 @@ function ShoppingBagIllustration({ size = 96 }: { size?: number }) {
   );
 }
 
+function WaterBottleIllustration({ size = 96 }: { size?: number }) {
+  const inner = size * (40 / 96);
+  return (
+    <div className="bg-[#f7f8fb] content-stretch flex items-center justify-center relative rounded-[16px] shrink-0"
+      style={{ width: size, height: size, padding: size * (24 / 96) }}>
+      <div className="overflow-clip relative shrink-0" style={{ width: inner, height: inner }}>
+        <svg viewBox="0 0 36 54" fill="none" className="absolute inset-0 size-full">
+          {/* Cap */}
+          <rect x="12" y="1" width="12" height="7" rx="3" fill="#9499BB" />
+          {/* Neck */}
+          <rect x="14" y="8" width="8" height="5" rx="1" fill="#D0D2DF" />
+          {/* Body — full */}
+          <rect x="5" y="13" width="26" height="36" rx="6" fill="#D0D2DF" />
+          {/* Water fill — bottom portion */}
+          <path d="M5 33 h26 v10 Q31 49 25 49 H11 Q5 49 5 43 Z" fill="#9499BB" />
+          {/* Label stripe */}
+          <rect x="8" y="19" width="20" height="6" rx="2" fill="white" opacity="0.35" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function ProductPhoto({ product, size = 96 }: { product: Product; size?: number }) {
+  if (!product.hasPhoto) return <ShoppingBagIllustration size={size} />;
+  if (product.photoType === "water-bottle") return <WaterBottleIllustration size={size} />;
+  return (
+    <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0" style={{ width: size, height: size }}>
+      <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
+    </div>
+  );
+}
+
 function ActiveBadge() {
   return (
     <div className="content-stretch flex gap-[4px] items-center relative shrink-0">
@@ -99,13 +132,7 @@ function ProductCard({ product, onClick }: { product: Product; onClick?: () => v
   const Tag = onClick ? "button" : "div";
   return (
     <Tag onClick={onClick} className={`bg-white content-stretch drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-center p-[12px] relative rounded-[16px] shrink-0 w-[343px] text-left${onClick ? " cursor-pointer" : ""}`}>
-      {product.hasPhoto ? (
-        <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 size-[96px]">
-          <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
-        </div>
-      ) : (
-        <ShoppingBagIllustration />
-      )}
+      <ProductPhoto product={product} />
       <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
         <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-full items-start justify-center min-w-px relative">
           <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[12px] items-start leading-[0] min-h-px relative text-[#1e1e1e] w-full">
@@ -1243,13 +1270,7 @@ function SuccessSheet({
             </div>
             <p className="[word-break:break-word] font-['Montserrat:Regular',sans-serif] font-normal leading-[20px] relative shrink-0 text-[#1e1e1e] text-[14px] text-center w-full">Ahora podrás seleccionarlo desde el cobro para vender de forma más ágil.</p>
             <div className="bg-[#f7f8fb] content-stretch flex flex-col gap-[16px] items-center overflow-clip p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
-              {product.hasPhoto ? (
-                <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 size-[112px]">
-                  <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
-                </div>
-              ) : (
-                <ShoppingBagIllustration size={112} />
-              )}
+              <ProductPhoto product={product} size={112} />
               <div className="content-stretch flex flex-col gap-[4px] items-center relative shrink-0 w-full">
                 <div className="[word-break:break-word] flex flex-col font-['Montserrat:Regular',sans-serif] font-normal justify-center leading-[0] relative shrink-0 text-[#1e1e1e] text-[12px] text-center w-full">
                   <p className="leading-[16px]">{product.name}</p>
@@ -1452,16 +1473,18 @@ function CobroPage({
                   </div>
                   <PieChart label={hasRealProducts ? "2/2" : "1/2"} full={hasRealProducts} />
                 </div>
-                <button
-                  onClick={onCreateProduct}
-                  className="bg-[#f1f2f6] relative rounded-[12px] shrink-0 w-full cursor-pointer"
-                >
-                  <div className="flex flex-row items-center justify-center size-full">
-                    <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[12px] relative size-full">
-                      <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Crear producto o servicio</p>
+                {!hasRealProducts && (
+                  <button
+                    onClick={onCreateProduct}
+                    className="bg-[#f1f2f6] relative rounded-[12px] shrink-0 w-full cursor-pointer"
+                  >
+                    <div className="flex flex-row items-center justify-center size-full">
+                      <div className="content-stretch flex gap-[8px] items-center justify-center px-[16px] py-[12px] relative size-full">
+                        <p className="[word-break:break-word] font-['Montserrat:Bold',sans-serif] font-bold leading-[20px] relative shrink-0 text-[#121e6c] text-[14px] text-center whitespace-nowrap">Crear producto o servicio</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                )}
               </div>
 
               {/* Lista de productos */}
@@ -1471,13 +1494,7 @@ function CobroPage({
                   onClick={() => toggleCart(p.id)}
                   className={`bg-white content-stretch drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-center p-[12px] relative rounded-[16px] w-full max-w-[343px] text-left cursor-pointer ${cart[p.id] ? "ring-2 ring-[#ff2947]" : ""}`}
                 >
-                  {p.hasPhoto ? (
-                    <div className="content-stretch flex items-center justify-center relative rounded-[16px] shrink-0 size-[96px]">
-                      <img alt={p.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
-                    </div>
-                  ) : (
-                    <ShoppingBagIllustration />
-                  )}
+                  <ProductPhoto product={p} />
                   <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
                     <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-full items-start justify-center min-w-px relative">
                       <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[12px] items-start leading-[0] min-h-px relative text-[#1e1e1e] w-full">
@@ -1568,13 +1585,7 @@ function ProductDetailPage({
           {/* InfoGeneral card */}
           <div className="bg-white content-stretch flex flex-col gap-[24px] items-center overflow-clip p-[16px] relative rounded-[16px] shrink-0 w-[343px]">
             {/* Product image */}
-            {product.hasPhoto ? (
-              <div className="content-stretch flex items-center justify-center p-[24px] relative rounded-[16px] shrink-0 size-[112px]">
-                <img alt={product.name} className="absolute inset-0 max-w-none object-cover pointer-events-none rounded-[16px] size-full" src={imgSneaker} />
-              </div>
-            ) : (
-              <ShoppingBagIllustration size={112} />
-            )}
+            <ProductPhoto product={product} size={112} />
             {/* Details: name + price */}
             <div className="content-stretch flex flex-col gap-[4px] items-start relative shrink-0 w-full">
               <div className="[word-break:break-word] flex flex-col font-['Montserrat:Regular',sans-serif] font-normal h-[16px] justify-center leading-[0] relative shrink-0 text-[#1e1e1e] text-[12px] text-center w-[311px]">
@@ -1754,7 +1765,7 @@ function ProductDetailPage({
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 const SEED_PRODUCTS: Product[] = [
-  { id: "example-1", name: "Producto de ejemplo", price: "25.000", isExample: true },
+  { id: "example-1", name: "Botella de agua", price: "5.000", hasPhoto: true, photoType: "water-bottle", isExample: true },
   { id: "example-2", name: "Servicio de ejemplo", price: "50.000", isExample: true },
 ];
 
