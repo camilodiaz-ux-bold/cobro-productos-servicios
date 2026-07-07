@@ -2733,7 +2733,7 @@ export default function App() {
             items={checkoutItems}
             onNuevoCobro={() => {
               setCheckoutItems([]);
-              setScreen("home-payments");
+              navigateToCobro("productos", "home-productos");
             }}
           />
         )}
