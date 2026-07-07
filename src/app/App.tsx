@@ -1318,16 +1318,25 @@ function CobroPage({
 }) {
   const [tab, setTab] = useState<"monto" | "productos">(defaultTab);
   const [amount, setAmount] = useState("0");
-  const [cart, setCart] = useState<Record<string, boolean>>({});
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [salePrices, setSalePrices] = useState<Record<string, number>>({});
+  const [favorites, setFavorites] = useState<Record<string, boolean>>({});
+  const [categoryTab, setCategoryTab] = useState<"todos" | "favoritos" | "general" | "tecnologia">("todos");
+  const [editingPriceFor, setEditingPriceFor] = useState<string | null>(null);
+  const [editPriceInput, setEditPriceInput] = useState("");
 
   const hasRealProducts = products.some(p => !p.isExample);
 
   const parsePrice = (price: string) =>
     parseInt(price.replace(/\./g, "").replace(/[^0-9]/g, ""), 10) || 0;
 
-  const selected = products.filter(p => cart[p.id]);
-  const cartCount = selected.length;
-  const cartTotal = selected.reduce((s, p) => s + parsePrice(p.price), 0);
+  const getEffectivePrice = (p: Product) => salePrices[p.id] ?? parsePrice(p.price);
+
+  const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
+  const cartTotal = products.reduce((sum, p) => {
+    const qty = cart[p.id] || 0;
+    return sum + qty * getEffectivePrice(p);
+  }, 0);
 
   const formatCOP = (n: number) => "$" + n.toLocaleString("es-CO");
   const displayAmount = formatCOP(parseInt(amount, 10) || 0);
@@ -1336,8 +1345,33 @@ function CobroPage({
     setAmount(prev => prev === "0" ? d : prev.length < 10 ? prev + d : prev);
   const handleErase = () =>
     setAmount(prev => prev.length <= 1 ? "0" : prev.slice(0, -1));
-  const toggleCart = (id: string) =>
-    setCart(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const addToCart = (id: string) =>
+    setCart(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+  const removeFromCart = (id: string) =>
+    setCart(prev => {
+      const qty = (prev[id] || 0) - 1;
+      if (qty <= 0) { const next = { ...prev }; delete next[id]; return next; }
+      return { ...prev, [id]: qty };
+    });
+
+  const filteredProducts = products.filter(p => {
+    if (categoryTab === "favoritos") return favorites[p.id];
+    if (categoryTab === "general") return true;
+    if (categoryTab === "tecnologia") return false;
+    return true;
+  });
+
+  const openEditPrice = (p: Product) => {
+    setEditingPriceFor(p.id);
+    setEditPriceInput(String(getEffectivePrice(p)));
+  };
+  const saveEditPrice = () => {
+    if (!editingPriceFor) return;
+    const val = parseInt(editPriceInput.replace(/\./g, "").replace(/[^0-9]/g, ""), 10) || 0;
+    setSalePrices(prev => ({ ...prev, [editingPriceFor]: val }));
+    setEditingPriceFor(null);
+  };
 
   const pill = (
     <div className={`flex gap-[4px] items-center rounded-[100px] px-[4px] py-[4px] w-[205px] ${tab === "monto" ? "bg-[#f7f8fb]" : "bg-white"}`}>
@@ -1379,8 +1413,8 @@ function CobroPage({
                 <path d="M16 10a4 4 0 01-8 0" stroke="#121E6C" strokeWidth="1.5" />
               </svg>
               {cartCount > 0 && (
-                <div className="absolute -top-[4px] -right-[4px] bg-[#ff2947] rounded-full size-[14px] flex items-center justify-center">
-                  <span className="font-['Montserrat:Bold',sans-serif] font-bold text-white" style={{ fontSize: 8 }}>{cartCount}</span>
+                <div className="absolute -top-[6px] -right-[6px] bg-[#ff2947] rounded-full size-[16px] flex items-center justify-center">
+                  <span className="font-['Montserrat:Bold',sans-serif] font-bold text-white leading-none" style={{ fontSize: 9 }}>{cartCount > 9 ? "9+" : cartCount}</span>
                 </div>
               )}
             </div>
@@ -1457,6 +1491,32 @@ function CobroPage({
       {/* ── TAB PRODUCTOS ── */}
       {tab === "productos" && (
         <>
+          {/* Category tabs */}
+          <div className="flex-none border-b border-[#e8e9f0]">
+            <div className="flex px-[16px]">
+              {(["todos", "favoritos", "general", "tecnologia"] as const).map(ct => {
+                const label = ct === "todos" ? "Todos" : ct === "favoritos" ? "Favoritos" : ct === "general" ? "General" : "Tecnología";
+                const active = categoryTab === ct;
+                return (
+                  <button
+                    key={ct}
+                    onClick={() => setCategoryTab(ct)}
+                    className="flex flex-col items-center flex-1 cursor-pointer"
+                  >
+                    <span className={`text-[12px] leading-[16px] py-[10px] ${active ? "font-['Montserrat:Semibold',sans-serif] font-semibold text-[#121e6c]" : "font-['Montserrat:Regular',sans-serif] font-normal text-[#121e6c]"}`}>
+                      {label}
+                    </span>
+                    <div className={`h-[2px] w-full rounded-t-full ${active ? "bg-[#ff2947]" : "bg-transparent"}`} />
+                  </button>
+                );
+              })}
+              <button className="flex flex-col items-center px-[10px] cursor-pointer">
+                <span className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#121e6c] leading-[16px] py-[10px]">+</span>
+                <div className="h-[2px] w-full rounded-t-full bg-transparent" />
+              </button>
+            </div>
+          </div>
+
           <div className="flex-1 overflow-y-auto py-[12px]">
             <div className="flex flex-col gap-[12px] items-center px-[16px]">
 
@@ -1488,41 +1548,122 @@ function CobroPage({
               </div>
 
               {/* Lista de productos */}
-              {products.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => toggleCart(p.id)}
-                  className={`bg-white content-stretch drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-center p-[12px] relative rounded-[16px] w-full max-w-[343px] text-left cursor-pointer ${cart[p.id] ? "ring-2 ring-[#ff2947]" : ""}`}
-                >
-                  <ProductPhoto product={p} />
-                  <div className="flex flex-[1_0_0] flex-row items-center self-stretch">
-                    <div className="content-stretch flex flex-[1_0_0] flex-col gap-[16px] h-full items-start justify-center min-w-px relative">
-                      <div className="[word-break:break-word] content-stretch flex flex-[1_0_0] flex-col gap-[12px] items-start leading-[0] min-h-px relative text-[#1e1e1e] w-full">
-                        <div className="flex flex-col font-['Montserrat:Regular',sans-serif] font-normal justify-center relative shrink-0 text-[12px] w-full">
-                          <p className="leading-[16px]">{p.name}</p>
-                        </div>
-                        <div className="flex flex-col font-['Montserrat:Medium',sans-serif] font-medium justify-center relative shrink-0 text-[14px] whitespace-nowrap">
-                          <p className="leading-[20px]">{p.price.startsWith("$") ? p.price : "$" + p.price}</p>
+              {filteredProducts.map(p => {
+                const qty = cart[p.id] || 0;
+                const isSelected = qty > 0;
+                const unitPrice = getEffectivePrice(p);
+                const totalLine = unitPrice * qty;
+                return (
+                  <div
+                    key={p.id}
+                    className={`bg-white drop-shadow-[0px_8px_10px_rgba(18,30,108,0.08)] flex gap-[12px] items-start p-[12px] relative rounded-[16px] w-full max-w-[343px] ${isSelected ? "border border-[#ff2947]" : ""}`}
+                  >
+                    {/* Product image with heart badge */}
+                    <div className="relative shrink-0">
+                      <div className="size-[72px] rounded-[12px] overflow-hidden">
+                        <div className="size-full">
+                          <ProductPhoto product={p} size={72} />
                         </div>
                       </div>
-                      <ActiveBadge />
+                      {/* Heart badge */}
+                      <button
+                        onClick={() => setFavorites(prev => ({ ...prev, [p.id]: !prev[p.id] }))}
+                        className="absolute left-[6px] top-[6px] backdrop-blur-[2px] bg-[rgba(255,255,255,0.5)] p-[4px] rounded-[8px] size-[28px] flex items-center justify-center cursor-pointer"
+                      >
+                        <svg viewBox="0 0 20 18" className="size-[16px]" fill="none">
+                          {favorites[p.id] ? (
+                            <path d="M10 16.5C10 16.5 1.5 11 1.5 5.5C1.5 3.01 3.51 1 6 1C7.74 1 9.26 1.93 10 3.34C10.74 1.93 12.26 1 14 1C16.49 1 18.5 3.01 18.5 5.5C18.5 11 10 16.5 10 16.5Z" fill="#ff2947" />
+                          ) : (
+                            <path d="M10 16.5C10 16.5 1.5 11 1.5 5.5C1.5 3.01 3.51 1 6 1C7.74 1 9.26 1.93 10 3.34C10.74 1.93 12.26 1 14 1C16.49 1 18.5 3.01 18.5 5.5C18.5 11 10 16.5 10 16.5Z" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          )}
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Info section */}
+                    <div className="flex flex-1 flex-col gap-[8px] items-start min-w-0 pt-[4px]">
+                      {/* Name */}
+                      <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#1e1e1e] leading-[16px]">{p.name}</p>
+
+                      {isSelected ? (
+                        <>
+                          {/* Total line */}
+                          <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px] whitespace-nowrap">
+                            {formatCOP(totalLine)} &nbsp;({qty} un)
+                          </p>
+                          {/* Unit price */}
+                          <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px] whitespace-nowrap">
+                            {formatCOP(unitPrice)}
+                          </p>
+                          {/* Stepper + Editar precio row */}
+                          <div className="flex items-center justify-between w-full">
+                            {/* Stepper */}
+                            <div className="bg-[#f7f8fb] flex gap-[2px] items-center justify-center p-[8px] rounded-[100px]">
+                              <button
+                                onClick={() => removeFromCart(p.id)}
+                                className="size-[24px] flex items-center justify-center cursor-pointer"
+                              >
+                                {qty === 1 ? (
+                                  <svg viewBox="0 0 20 22" className="size-[18px]" fill="none">
+                                    <path clipRule="evenodd" fillRule="evenodd" d="M7 0a1 1 0 000 2h6a1 1 0 100-2H7zM1 5a1 1 0 011-1h16a1 1 0 110 2H2a1 1 0 01-1-1zM3 8a1 1 0 011 1v9a1 1 0 001 1h10a1 1 0 001-1V9a1 1 0 112 0v9a3 3 0 01-3 3H5a3 3 0 01-3-3V9a1 1 0 011-1z" fill="#121E6C" />
+                                  </svg>
+                                ) : (
+                                  <svg viewBox="0 0 20 2" className="size-[16px]" fill="none">
+                                    <path d="M1 1h18" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                                  </svg>
+                                )}
+                              </button>
+                              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#121e6c] leading-[20px] w-[32px] text-center">{qty}</span>
+                              <button
+                                onClick={() => addToCart(p.id)}
+                                className="size-[24px] flex items-center justify-center cursor-pointer"
+                              >
+                                <svg viewBox="0 0 20 20" className="size-[16px]" fill="none">
+                                  <path d="M10 1v18M1 10h18" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                                </svg>
+                              </button>
+                            </div>
+                            {/* Editar precio */}
+                            <button
+                              onClick={() => openEditPrice(p)}
+                              className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[12px] text-[#ff2947] underline cursor-pointer"
+                            >
+                              Editar precio
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px] whitespace-nowrap">
+                            {formatCOP(unitPrice)}
+                          </p>
+                          {/* Tap to add */}
+                          <button
+                            onClick={() => addToCart(p.id)}
+                            className="bg-[#f7f8fb] flex items-center justify-center rounded-[100px] size-[28px] cursor-pointer"
+                          >
+                            <svg viewBox="0 0 16 16" className="size-[14px]" fill="none">
+                              <path d="M8 1v14M1 8h14" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
-                  {cart[p.id] && (
-                    <div className="absolute right-[12px] top-[12px] bg-[#ff2947] rounded-full size-[20px] flex items-center justify-center">
-                      <svg viewBox="0 0 12 10" className="size-[10px]" fill="none">
-                        <path d="M1 5l3 4 7-8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              ))}
+                );
+              })}
+
+              {filteredProducts.length === 0 && (
+                <div className="flex flex-col items-center gap-[8px] py-[32px]">
+                  <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#606060]">Sin productos en esta categoría</p>
+                </div>
+              )}
             </div>
           </div>
 
           {/* Bottom bar */}
-          <div className="flex-none flex items-center gap-[12px] px-[16px] py-[16px] backdrop-blur-[6px]"
-            style={{ background: "rgba(247,248,251,0.95)" }}>
+          <div className="flex-none flex items-center gap-[12px] px-[16px] py-[20px] backdrop-blur-[6px]"
+            style={{ background: "rgba(247,248,251,0.9)" }}>
             <div className="flex-1 flex flex-col gap-[2px]">
               <span className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">
                 {cartCount} {cartCount === 1 ? "Producto" : "Productos"}
@@ -1538,6 +1679,45 @@ function CobroPage({
             </button>
           </div>
         </>
+      )}
+
+      {/* ── Editar precio drop-up ── */}
+      {editingPriceFor && (
+        <div className="absolute inset-0 flex flex-col justify-end z-50" style={{ background: "rgba(30,30,30,0.7)" }}>
+          <div className="bg-white rounded-tl-[32px] rounded-tr-[32px] flex flex-col gap-[24px] px-[16px] py-[12px]">
+            {/* Header */}
+            <div className="flex gap-[20px] items-center py-[12px]">
+              <button onClick={() => setEditingPriceFor(null)} className="size-[24px] flex items-center justify-center cursor-pointer shrink-0">
+                <svg viewBox="0 0 24 24" className="size-full" fill="none">
+                  <path d="M15 18l-6-6 6-6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <span className="flex-1 text-center font-['Montserrat:Semibold',sans-serif] font-semibold text-[16px] text-[#121e6c] leading-[24px]">Editar precio unitario</span>
+              <button onClick={() => setEditingPriceFor(null)} className="size-[24px] flex items-center justify-center cursor-pointer shrink-0">
+                <svg viewBox="0 0 24 24" className="size-full" fill="none">
+                  <path d="M18 6L6 18M6 6l12 12" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            {/* Input */}
+            <div className="flex flex-col gap-[8px]">
+              <input
+                type="number"
+                value={editPriceInput}
+                onChange={e => setEditPriceInput(e.target.value)}
+                className="bg-[#f7f8fb] h-[40px] rounded-[12px] pl-[12px] font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] outline-none w-full"
+              />
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">IVA (5%) incluido en el precio unitario</p>
+            </div>
+            {/* Guardar */}
+            <button
+              onClick={saveEditPrice}
+              className="bg-[#ff2947] h-[48px] rounded-[100px] w-full flex items-center justify-center cursor-pointer mb-[8px]"
+            >
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white leading-[20px]">Guardar</span>
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
