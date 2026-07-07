@@ -15,7 +15,11 @@ import imgCard1 from "../imports/Pagos-1/bfb4d0e5d42f0a85a652d9f2b3f840dc2ef1a0a
 
 interface Product { id: string; name: string; price: string; hasPhoto?: boolean; photoType?: "water-bottle"; isExample?: boolean; }
 
-type AppScreen = "home-payments" | "home-productos" | "tus-productos" | "create-product" | "product-detail" | "cobro";
+interface CheckoutItem { id: string; name: string; qty: number; unitPrice: number; hasPhoto?: boolean; photoType?: "water-bottle"; }
+
+type AppScreen = "home-payments" | "home-productos" | "tus-productos" | "create-product" | "product-detail" | "cobro" | "cobro-productos" | "cobro-detalle" | "cobro-medios" | "cobro-captura" | "cobro-exitoso";
+
+const formatCOP = (n: number) => "$" + n.toLocaleString("es-CO");
 
 // ─── Shared atoms ─────────────────────────────────────────────────────────────
 
@@ -1310,11 +1314,13 @@ function CobroPage({
   onBack,
   defaultTab,
   onCreateProduct,
+  onCobrar,
 }: {
   products: Product[];
   onBack: () => void;
   defaultTab: "monto" | "productos";
   onCreateProduct: () => void;
+  onCobrar: (items: CheckoutItem[]) => void;
 }) {
   const [tab, setTab] = useState<"monto" | "productos">(defaultTab);
   const [amount, setAmount] = useState("0");
@@ -1338,7 +1344,6 @@ function CobroPage({
     return sum + qty * getEffectivePrice(p);
   }, 0);
 
-  const formatCOP = (n: number) => "$" + n.toLocaleString("es-CO");
   const displayAmount = formatCOP(parseInt(amount, 10) || 0);
 
   const handleDigit = (d: string) =>
@@ -1673,6 +1678,20 @@ function CobroPage({
               </span>
             </div>
             <button
+              onClick={() => {
+                if (cartCount === 0) return;
+                const items: CheckoutItem[] = products
+                  .filter(p => (cart[p.id] || 0) > 0)
+                  .map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    qty: cart[p.id],
+                    unitPrice: getEffectivePrice(p),
+                    hasPhoto: p.hasPhoto,
+                    photoType: p.photoType,
+                  }));
+                onCobrar(items);
+              }}
               className={`flex items-center justify-center w-[140px] h-[48px] rounded-[100px] font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white ${cartCount > 0 ? "bg-[#ff2947] cursor-pointer" : "bg-[#ffb2bc] cursor-not-allowed"}`}
             >
               Cobrar
@@ -1942,6 +1961,588 @@ function ProductDetailPage({
   );
 }
 
+// ─── Page: Productos a cobrar ─────────────────────────────────────────────────
+
+function ProductosACobrarPage({
+  initialItems,
+  onBack,
+  onClose,
+  onContinue,
+}: {
+  initialItems: CheckoutItem[];
+  onBack: () => void;
+  onClose: () => void;
+  onContinue: (items: CheckoutItem[]) => void;
+}) {
+  const [items, setItems] = useState<CheckoutItem[]>(initialItems);
+  const [editingFor, setEditingFor] = useState<string | null>(null);
+  const [editInput, setEditInput] = useState("");
+
+  const totalQty = items.reduce((s, i) => s + i.qty, 0);
+  const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+
+  const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
+  const addQty = (id: string) => setItems(prev => prev.map(i => i.id === id ? { ...i, qty: i.qty + 1 } : i));
+  const removeQty = (id: string) => setItems(prev => {
+    const item = prev.find(i => i.id === id);
+    if (!item) return prev;
+    if (item.qty <= 1) return prev.filter(i => i.id !== id);
+    return prev.map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i);
+  });
+  const openEditPrice = (id: string) => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    setEditingFor(id);
+    setEditInput(String(item.unitPrice));
+  };
+  const saveEditPrice = () => {
+    if (!editingFor) return;
+    const val = parseInt(editInput.replace(/\./g, "").replace(/[^0-9]/g, ""), 10) || 0;
+    setItems(prev => prev.map(i => i.id === editingFor ? { ...i, unitPrice: val } : i));
+    setEditingFor(null);
+  };
+
+  return (
+    <div className="bg-[#f7f8fb] flex flex-col size-full relative">
+      {/* Header */}
+      <div className="flex-none flex flex-col gap-[20px] pb-[16px]">
+        <StatusBar />
+        <div className="flex gap-[8px] items-center px-[12px]">
+          <BackButton onPress={onBack} />
+          <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[18px] leading-[24px] text-[#121e6c] text-center">Productos a cobrar</p>
+          <CloseXButton onPress={onClose} />
+        </div>
+      </div>
+
+      {/* Scrollable list */}
+      <div className="flex-1 overflow-y-auto pb-[96px]">
+        <div className="px-[16px] flex flex-col gap-[12px]">
+          {/* Label row */}
+          <div className="flex items-center gap-[12px] h-[20px]">
+            <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[14px] leading-[20px] text-[#121e6c]">
+              {totalQty} {totalQty === 1 ? "producto" : "productos"}
+            </p>
+            <button onClick={() => setItems([])} className="flex gap-[4px] items-center cursor-pointer">
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[12px] text-[#121e6c] underline leading-[16px]">Eliminar todos</span>
+              <svg viewBox="0 0 20 22" className="size-[20px]" fill="none">
+                <path clipRule="evenodd" fillRule="evenodd" d="M7 0a1 1 0 000 2h6a1 1 0 100-2H7zM1 5a1 1 0 011-1h16a1 1 0 110 2H2a1 1 0 01-1-1zM3 8a1 1 0 011 1v9a1 1 0 001 1h10a1 1 0 001-1V9a1 1 0 112 0v9a3 3 0 01-3 3H5a3 3 0 01-3-3V9a1 1 0 011-1z" fill="#121E6C" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Cards */}
+          {items.map(item => (
+            <div key={item.id} className="bg-white rounded-[16px] p-[12px] flex gap-[12px] items-start">
+              <div className="size-[72px] rounded-[12px] overflow-hidden shrink-0">
+                {item.photoType === "water-bottle"
+                  ? <WaterBottleIllustration size={72} />
+                  : <ShoppingBagIllustration size={72} />}
+              </div>
+              <div className="flex flex-1 flex-col gap-[16px] items-start min-w-0 justify-center">
+                {/* Name + trash */}
+                <div className="flex gap-[4px] items-start w-full">
+                  <div className="flex flex-1 flex-col gap-[4px] min-w-0">
+                    <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#1e1e1e] leading-[16px] truncate">{item.name}</p>
+                    <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px] whitespace-nowrap">
+                      {formatCOP(item.unitPrice * item.qty)}&nbsp;({item.qty} un)
+                    </p>
+                  </div>
+                  <button onClick={() => removeItem(item.id)} className="size-[20px] flex items-center justify-center cursor-pointer shrink-0 mt-[2px]">
+                    <svg viewBox="0 0 20 22" className="size-full" fill="none">
+                      <path clipRule="evenodd" fillRule="evenodd" d="M7 0a1 1 0 000 2h6a1 1 0 100-2H7zM1 5a1 1 0 011-1h16a1 1 0 110 2H2a1 1 0 01-1-1zM3 8a1 1 0 011 1v9a1 1 0 001 1h10a1 1 0 001-1V9a1 1 0 112 0v9a3 3 0 01-3 3H5a3 3 0 01-3-3V9a1 1 0 011-1z" fill="#121E6C" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Unit price */}
+                <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px] whitespace-nowrap">{formatCOP(item.unitPrice)}</p>
+                {/* Stepper + Editar precio */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="bg-[#f7f8fb] flex gap-[2px] items-center p-[8px] rounded-[100px]">
+                    <button onClick={() => removeQty(item.id)} className="size-[24px] flex items-center justify-center cursor-pointer">
+                      {item.qty === 1
+                        ? <svg viewBox="0 0 20 22" className="size-[16px]" fill="none"><path clipRule="evenodd" fillRule="evenodd" d="M7 0a1 1 0 000 2h6a1 1 0 100-2H7zM1 5a1 1 0 011-1h16a1 1 0 110 2H2a1 1 0 01-1-1zM3 8a1 1 0 011 1v9a1 1 0 001 1h10a1 1 0 001-1V9a1 1 0 112 0v9a3 3 0 01-3 3H5a3 3 0 01-3-3V9a1 1 0 011-1z" fill="#121E6C" /></svg>
+                        : <svg viewBox="0 0 20 2" className="size-[14px]" fill="none"><path d="M1 1h18" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" /></svg>}
+                    </button>
+                    <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[16px] text-[#121e6c] text-center w-[48px] leading-[20px]">{item.qty}</span>
+                    <button onClick={() => addQty(item.id)} className="size-[24px] flex items-center justify-center cursor-pointer">
+                      <svg viewBox="0 0 20 20" className="size-[14px]" fill="none"><path d="M10 1v18M1 10h18" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                    </button>
+                  </div>
+                  <button onClick={() => openEditPrice(item.id)} className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[12px] text-[#ff2947] underline cursor-pointer">
+                    Editar precio
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center gap-[12px] px-[16px] py-[20px] backdrop-blur-[6px]"
+        style={{ background: "rgba(247,248,251,0.9)" }}>
+        <div className="flex-1 flex flex-col gap-[2px]">
+          <span className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">
+            {totalQty} {totalQty === 1 ? "Producto" : "Productos"}
+          </span>
+          <span className="font-['Montserrat:Medium',sans-serif] font-medium text-[16px] text-[#1e1e1e] leading-[20px]">{formatCOP(total)}</span>
+        </div>
+        <button
+          onClick={() => items.length > 0 && onContinue(items)}
+          className={`flex items-center justify-center w-[174px] h-[48px] rounded-[100px] font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white ${items.length > 0 ? "bg-[#ff2947] cursor-pointer" : "bg-[#ffb2bc] cursor-not-allowed"}`}
+        >
+          Continuar
+        </button>
+      </div>
+
+      {/* Editar precio drop-up */}
+      {editingFor && (
+        <div className="absolute inset-0 flex flex-col justify-end z-50" style={{ background: "rgba(30,30,30,0.7)" }}>
+          <div className="bg-white rounded-tl-[32px] rounded-tr-[32px] flex flex-col gap-[24px] px-[16px] py-[12px]">
+            <div className="flex gap-[20px] items-center py-[12px]">
+              <button onClick={() => setEditingFor(null)} className="size-[24px] flex items-center justify-center cursor-pointer shrink-0">
+                <svg viewBox="0 0 24 24" className="size-full" fill="none"><path d="M15 18l-6-6 6-6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              <span className="flex-1 text-center font-['Montserrat:Semibold',sans-serif] font-semibold text-[16px] text-[#121e6c] leading-[24px]">Editar precio unitario</span>
+              <button onClick={() => setEditingFor(null)} className="size-[24px] flex items-center justify-center cursor-pointer shrink-0">
+                <svg viewBox="0 0 24 24" className="size-full" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+            <div className="flex flex-col gap-[8px]">
+              <input type="number" value={editInput} onChange={e => setEditInput(e.target.value)}
+                className="bg-[#f7f8fb] h-[40px] rounded-[12px] pl-[12px] font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] outline-none w-full" />
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">IVA (5%) incluido en el precio unitario</p>
+            </div>
+            <button onClick={saveEditPrice} className="bg-[#ff2947] h-[48px] rounded-[100px] w-full flex items-center justify-center cursor-pointer mb-[8px]">
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white leading-[20px]">Guardar</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Page: Detalle a cobrar (drop-up) ────────────────────────────────────────
+
+function DetallePage({
+  items,
+  onBack,
+  onCobrar,
+}: {
+  items: CheckoutItem[];
+  onBack: () => void;
+  onCobrar: () => void;
+}) {
+  const [tipEnabled, setTipEnabled] = useState(false);
+
+  const subtotal = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const tip = tipEnabled ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + tip;
+  const itemCount = items.reduce((s, i) => s + i.qty, 0);
+
+  return (
+    <div className="relative size-full">
+      <div className="absolute inset-0 bg-[#f7f8fb]" />
+      <div className="absolute inset-0" style={{ background: "rgba(30,30,30,0.7)" }} />
+      {/* Sheet */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-tl-[32px] rounded-tr-[32px] flex flex-col px-[18px] pt-[12px] pb-[28px]">
+        {/* Header */}
+        <div className="flex items-center gap-[20px]">
+          <button onClick={onBack} className="flex items-center py-[16px] cursor-pointer shrink-0">
+            <svg viewBox="0 0 24 24" className="size-[24px]" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[18px] leading-[24px] text-[#121e6c] text-center py-[12px]">Detalle a cobrar</p>
+          <div className="size-[24px] shrink-0" />
+        </div>
+
+        <div className="flex flex-col gap-[16px]">
+          {/* Amount + dividir */}
+          <div className="flex flex-col gap-[20px] items-center">
+            <p className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[24px] leading-[36px] text-[#1e1e1e]">{formatCOP(total)}</p>
+            <button className="bg-[#f1f2f6] flex gap-[8px] h-[48px] items-center justify-center w-full rounded-[12px] cursor-pointer">
+              <svg viewBox="0 0 24 24" className="size-[24px]" fill="none">
+                <rect x="2" y="7" width="20" height="13" rx="2" stroke="#121E6C" strokeWidth="1.5" />
+                <path d="M2 11h20M8 7V5a2 2 0 014 0v2" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                <circle cx="12" cy="15" r="1.5" fill="#121E6C" />
+              </svg>
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#121e6c] leading-[20px]">Dividir cobro</span>
+            </button>
+          </div>
+
+          {/* Breakdown rows */}
+          <div className="flex flex-col gap-[8px]">
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#1e1e1e] leading-[20px]">Subtotal</p>
+              <p className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#1e1e1e] leading-[20px]">{formatCOP(subtotal)}</p>
+            </div>
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1e1e1e] leading-[20px]">INC (0 %)</p>
+              <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px]">{formatCOP(0)}</p>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-[#e8e9f0]" />
+
+          {/* Second group */}
+          <div className="flex flex-col gap-[8px]">
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1e1e1e] leading-[20px]">Productos y servicios</p>
+              <button className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[14px] text-[#121e6c] underline leading-[20px] cursor-pointer">
+                {itemCount} {itemCount === 1 ? "producto" : "productos"}
+              </button>
+            </div>
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1e1e1e] leading-[20px]">Agregar propina</p>
+              <button onClick={() => setTipEnabled(!tipEnabled)} className="cursor-pointer shrink-0">
+                <div className={`relative h-[28px] w-[47px] rounded-[99px] transition-colors ${tipEnabled ? "bg-[#ff2947]" : "bg-[#d2d4e1]"}`}>
+                  <div className={`absolute top-[2px] size-[24px] bg-white rounded-full drop-shadow-[0px_4px_4px_rgba(0,0,0,0.08)] transition-all ${tipEnabled ? "left-[21px]" : "left-[2px]"}`} />
+                </div>
+              </button>
+            </div>
+            {tipEnabled && (
+              <div className="flex items-center">
+                <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1e1e1e] leading-[20px]">Propina (10%)</p>
+                <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[14px] text-[#1e1e1e] leading-[20px]">{formatCOP(tip)}</p>
+              </div>
+            )}
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#1e1e1e] leading-[20px]">Total a cobrar</p>
+              <p className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#1e1e1e] leading-[20px]">{formatCOP(total)}</p>
+            </div>
+          </div>
+
+          {/* Cobrar button */}
+          <button onClick={onCobrar} className="bg-[#ff2947] h-[48px] rounded-[100px] w-full flex items-center justify-center cursor-pointer">
+            <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white leading-[20px]">Cobrar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page: ¿Cómo quieres cobrar? (drop-up) ───────────────────────────────────
+
+function MediosDePagoPage({
+  items,
+  onBack,
+  onDatafono,
+}: {
+  items: CheckoutItem[];
+  onBack: () => void;
+  onDatafono: () => void;
+}) {
+  const subtotal = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+
+  return (
+    <div className="relative size-full bg-[#f7f8fb]">
+      {/* Background: summary card */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="px-[16px] pt-[60px] flex flex-col gap-[12px]">
+          <p className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#121e6c] leading-[20px]">Detalle a cobrar</p>
+          <div className="bg-white rounded-[12px] px-[16px] py-[12px] flex flex-col gap-[12px]">
+            {[
+              { label: "Subtotal", value: formatCOP(subtotal), bold: true },
+              { label: "Descuento", value: formatCOP(0), bold: false },
+              { label: "Sin impuesto", value: formatCOP(0), bold: false },
+            ].map(({ label, value, bold }) => (
+              <div key={label} className="flex items-center">
+                <p className={`flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#1e1e1e]`}>{label}</p>
+                <p className={`text-[12px] text-[#1e1e1e] ${bold ? "font-['Montserrat:Semibold',sans-serif] font-semibold" : "font-['Montserrat:Regular',sans-serif] font-normal"}`}>{value}</p>
+              </div>
+            ))}
+            <div className="h-px bg-[#e8e9f0]" />
+            <div className="flex items-center">
+              <p className="flex-1 font-['Montserrat:Semibold',sans-serif] font-semibold text-[14px] text-[#1e1e1e]">Total a facturar</p>
+              <p className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-[#1e1e1e]">{formatCOP(subtotal)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Overlay */}
+      <div className="absolute inset-0" style={{ background: "rgba(30,30,30,0.7)" }} />
+
+      {/* Drop-up sheet */}
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-tl-[24px] rounded-tr-[24px] flex flex-col gap-[16px] pb-[32px]">
+        {/* Header */}
+        <div className="flex items-start px-[16px] pt-[12px]">
+          <button onClick={onBack} className="flex items-center py-[12px] cursor-pointer shrink-0">
+            <svg viewBox="0 0 24 24" className="size-[24px]" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <p className="flex-1 font-['Montserrat:Bold',sans-serif] font-bold text-[16px] leading-[24px] text-[#121e6c] text-center py-[12px]">¿Cómo quieres cobrar?</p>
+          <div className="size-[24px] shrink-0 mt-[12px]" />
+        </div>
+
+        {/* Payment methods grid */}
+        <div className="flex flex-wrap gap-[12px] px-[16px]">
+          {[
+            {
+              label: "Datáfono",
+              icon: (
+                <svg viewBox="0 0 32 32" className="size-[32px]" fill="none">
+                  <rect x="6" y="4" width="20" height="24" rx="3" stroke="#121E6C" strokeWidth="1.5" />
+                  <rect x="9" y="8" width="14" height="7" rx="1.5" fill="#121E6C" opacity="0.12" />
+                  <circle cx="16" cy="11" r="2" fill="#ff2947" opacity="0.6" />
+                  <circle cx="11" cy="19" r="1.5" fill="#121E6C" opacity="0.3" />
+                  <circle cx="16" cy="19" r="1.5" fill="#121E6C" opacity="0.3" />
+                  <circle cx="21" cy="19" r="1.5" fill="#121E6C" opacity="0.3" />
+                  <circle cx="11" cy="24" r="1.5" fill="#121E6C" opacity="0.3" />
+                  <circle cx="16" cy="24" r="1.5" fill="#121E6C" opacity="0.3" />
+                  <circle cx="21" cy="24" r="1.5" fill="#121E6C" opacity="0.3" />
+                </svg>
+              ),
+              action: onDatafono,
+              interactive: true,
+            },
+            {
+              label: "Link de pago",
+              icon: (
+                <svg viewBox="0 0 32 32" className="size-[32px]" fill="none">
+                  <path d="M13 19a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M19 13a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ),
+              action: null,
+              interactive: false,
+            },
+            {
+              label: "Efectivo",
+              icon: (
+                <svg viewBox="0 0 32 32" className="size-[32px]" fill="none">
+                  <rect x="3" y="10" width="26" height="14" rx="3" stroke="#121E6C" strokeWidth="1.5" />
+                  <circle cx="16" cy="17" r="3.5" stroke="#121E6C" strokeWidth="1.5" />
+                  <path d="M7 14v6M25 14v6" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              ),
+              action: null,
+              interactive: false,
+            },
+            {
+              label: "Nequi",
+              icon: (
+                <svg viewBox="0 0 32 32" className="size-[32px]" fill="none">
+                  <path d="M9 25V7l14 18V7" stroke="#7B2FBE" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ),
+              action: null,
+              interactive: false,
+            },
+          ].map(({ label, icon, action, interactive }) => (
+            <button
+              key={label}
+              onClick={() => action?.()}
+              className={`bg-[#f7f8fb] flex flex-1 flex-col gap-[12px] items-center justify-center min-w-[136px] max-w-[163px] h-[134px] px-[4px] py-[16px] rounded-[16px] ${interactive ? "cursor-pointer" : "cursor-default"}`}
+            >
+              {icon}
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1e1e1e] leading-[20px] text-center">{label}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page: Acerca, inserta o desliza ─────────────────────────────────────────
+
+function AcercaInsertaPage({
+  total,
+  onCancel,
+  onSuccess,
+}: {
+  total: number;
+  onCancel: () => void;
+  onSuccess: () => void;
+}) {
+  useEffect(() => {
+    const t = setTimeout(onSuccess, 2500);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="bg-white relative size-full flex flex-col">
+      {/* Header */}
+      <div className="flex-none">
+        <StatusBar />
+        <div className="flex items-center justify-between px-[4px] pr-[16px] h-[40px]">
+          <button onClick={onCancel} className="flex items-center px-[12px] gap-[4px] cursor-pointer">
+            <svg viewBox="0 0 24 24" className="size-[20px]" fill="none">
+              <path d="M18 6L6 18M6 6l12 12" stroke="#ff2947" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[12px] text-[#ff2947] underline leading-[16px]">Cancelar</span>
+          </button>
+          <div className="bg-[#f4fdf9] flex gap-[4px] h-[28px] items-center justify-center px-[12px] rounded-[100px]">
+            <svg viewBox="0 0 24 24" className="size-[20px]" fill="none">
+              <circle cx="12" cy="12" r="3.5" fill="#6CDCAB" />
+              <circle cx="12" cy="12" r="7" stroke="#6CDCAB" strokeWidth="1.5" opacity="0.4" fill="none" />
+            </svg>
+            <span className="font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#1b8959] leading-[20px]">Conectado</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col items-center pt-[48px] gap-[24px]">
+        <p className="font-['Montserrat:ExtraBold',sans-serif] font-extrabold text-[20px] leading-[28px] text-[#111e6c] text-center px-[24px]">
+          Acerca, inserta o desliza la tarjeta del tu cliente
+        </p>
+        <div className="flex flex-col items-center gap-[4px]">
+          <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[16px] text-[#969696] leading-[24px]">Monto a cobrar</p>
+          <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[32px] text-[#1e1e1e] leading-[40px]">{formatCOP(total)}</p>
+        </div>
+
+        {/* Datáfono illustration */}
+        <div className="flex items-center justify-center mt-[16px]">
+          <svg viewBox="0 0 160 200" className="w-[160px] h-[200px]" fill="none">
+            <defs>
+              <radialGradient id="devBg" cx="50%" cy="80%" r="60%">
+                <stop offset="0%" stopColor="#ff2947" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#121e6c" stopOpacity="0.15" />
+              </radialGradient>
+            </defs>
+            <ellipse cx="80" cy="185" rx="70" ry="18" fill="url(#devBg)" />
+            <rect x="30" y="15" width="100" height="160" rx="16" fill="#f1f2f6" />
+            <rect x="30" y="15" width="100" height="160" rx="16" stroke="#d2d4e1" strokeWidth="1" />
+            <rect x="42" y="30" width="76" height="46" rx="6" fill="#121e6c" opacity="0.08" />
+            <rect x="42" y="30" width="76" height="46" rx="6" stroke="#d2d4e1" strokeWidth="1" />
+            <circle cx="80" cy="53" r="7" fill="#ff2947" opacity="0.5" />
+            <circle cx="52" cy="103" r="6" fill="#d2d4e1" /><circle cx="80" cy="103" r="6" fill="#d2d4e1" /><circle cx="108" cy="103" r="6" fill="#d2d4e1" />
+            <circle cx="52" cy="124" r="6" fill="#d2d4e1" /><circle cx="80" cy="124" r="6" fill="#d2d4e1" /><circle cx="108" cy="124" r="6" fill="#d2d4e1" />
+            <circle cx="52" cy="145" r="6" fill="#d2d4e1" /><circle cx="80" cy="145" r="6" fill="#d2d4e1" /><circle cx="108" cy="145" r="6" fill="#d2d4e1" />
+          </svg>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page: Cobro exitoso ──────────────────────────────────────────────────────
+
+function CobroExitosoPage({
+  items,
+  onNuevoCobro,
+}: {
+  items: CheckoutItem[];
+  onNuevoCobro: () => void;
+}) {
+  const total = items.reduce((s, i) => s + i.qty * i.unitPrice, 0);
+  const itemCount = items.reduce((s, i) => s + i.qty, 0);
+  const now = new Date();
+  const dateStr = `${String(now.getDate()).padStart(2,"0")}/${String(now.getMonth()+1).padStart(2,"0")}/${now.getFullYear()} - ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+
+  const Row = ({ label, value, bold }: { label: string; value: string; bold?: boolean }) => (
+    <div className="flex items-start">
+      <p className={`flex-1 text-[12px] leading-[16px] text-[#606060] ${bold ? "font-['Montserrat:Bold',sans-serif] font-bold text-[#1e1e1e]" : "font-['Montserrat:Regular',sans-serif] font-normal"}`}>{label}</p>
+      <p className={`text-[12px] leading-[16px] text-right ${bold ? "font-['Montserrat:Bold',sans-serif] font-bold text-[#1e1e1e]" : "font-['Montserrat:Medium',sans-serif] font-medium text-[#1e1e1e]"}`}>{value}</p>
+    </div>
+  );
+
+  const Divider = () => (
+    <div className="h-px w-full bg-[#e8e9f0]" />
+  );
+
+  return (
+    <div className="bg-[#f7f8fb] flex flex-col size-full">
+      <div className="flex-none">
+        <StatusBar />
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div className="flex flex-col items-center gap-[32px] px-[16px] py-[24px]">
+          {/* Receipt card */}
+          <div className="bg-white w-full rounded-[16px] drop-shadow-[0px_8px_8px_rgba(18,30,108,0.04)] flex flex-col gap-[28px] items-center px-[16px] py-[24px]">
+            {/* Header: icon + title + amount */}
+            <div className="flex flex-col gap-[8px] items-center">
+              <div className="size-[40px] bg-[#6CDCAB] rounded-full flex items-center justify-center">
+                <svg viewBox="0 0 24 24" className="size-[22px]" fill="none">
+                  <path d="M5 12l5 5L20 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="font-['Montserrat:Bold',sans-serif] font-bold text-[16px] leading-[24px] text-[#1e1e1e] text-center">Cobro exitoso</p>
+              <p className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[32px] leading-[40px] text-[#121e6c] text-center whitespace-nowrap">{formatCOP(total)}</p>
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] leading-[16px] text-[#606060] text-center">{dateStr}</p>
+              <button className="flex gap-[8px] items-center">
+                <svg viewBox="0 0 22 22" className="size-[22px]" fill="none">
+                  <path d="M3 10v8a2 2 0 002 2h12a2 2 0 002-2v-8" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" />
+                  <path d="M11 2v12M7 8l4 4 4-4" stroke="#121E6C" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[12px] text-[#121e6c] underline leading-[16px]">
+                  Ver productos y servicios
+                </span>
+              </button>
+            </div>
+
+            {/* Transaction info */}
+            <div className="flex flex-col gap-[16px] w-full">
+              <div className="flex flex-col gap-[8px]">
+                <Row label="Comercio" value="Vinos y vinilos" />
+                <Row label="Dirección" value="Calle 123 # 24 - 32" />
+              </div>
+              <Divider />
+              <div className="flex flex-col gap-[8px]">
+                <Row label="Código único" value="17385253" />
+                <Row label="Terminal" value="9B00L648" />
+                <Row label="Código de autorización" value="000000-0" />
+                <Row label="ID transacción Bold" value="000000-0" />
+                <div className="flex items-center">
+                  <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#606060] leading-[16px]">Método de pago</p>
+                  <div className="flex items-center gap-[4px]">
+                    <div className="flex items-center gap-[1px]">
+                      <div className="size-[12px] rounded-full bg-[#EB001B]" />
+                      <div className="size-[12px] rounded-full bg-[#F79E1B] -ml-[4px]" />
+                    </div>
+                    <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[12px] text-[#1e1e1e] leading-[16px]">**** **** **** 7711</p>
+                  </div>
+                </div>
+              </div>
+              <Divider />
+              <div className="flex flex-col gap-[8px]">
+                <Row label="Subtotal" value={formatCOP(total)} />
+                <Row label="Sin impuesto" value={formatCOP(0)} />
+                <Row label={`${itemCount} productos`} value="" />
+                <Row label="Total de la venta" value={`COP ${formatCOP(total)}`} bold />
+              </div>
+              <Divider />
+              <div className="flex items-center">
+                <p className="flex-1 font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#969696] leading-[16px]">Detalle</p>
+                <p className="font-['Montserrat:Medium',sans-serif] font-medium text-[12px] text-[#969696] leading-[16px]">Pago sin contacto</p>
+              </div>
+            </div>
+          </div>
+
+          {/* CTAs */}
+          <div className="flex flex-col gap-[8px] items-center w-full">
+            <button onClick={onNuevoCobro} className="bg-[#ff2947] h-[48px] rounded-[100px] w-full flex items-center justify-center cursor-pointer">
+              <span className="font-['Montserrat:Bold',sans-serif] font-bold text-[14px] text-white leading-[20px]">Nuevo cobro</span>
+            </button>
+            <button className="flex items-center justify-center py-[12px] cursor-pointer">
+              <span className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[12px] text-[#ff2947] underline leading-[16px]">Compartir</span>
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="flex flex-col gap-[8px] items-center pb-[16px]">
+            <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[14px] text-[#606060] leading-[20px] text-center">
+              Si tienes dudas escríbenos a{" "}
+              <span className="font-['Montserrat:Semibold',sans-serif] font-semibold text-[#121e6c] underline">soporte@bold.co</span>
+            </p>
+            <div className="flex flex-col items-center gap-[2px]">
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#969bbd] leading-[16px]">Bold.co S.A.S NIT 901281572-4</p>
+              <p className="font-['Montserrat:Regular',sans-serif] font-normal text-[12px] text-[#969bbd] leading-[16px]">www.bold.co</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 const SEED_PRODUCTS: Product[] = [
@@ -1954,6 +2555,7 @@ export default function App() {
   const [products, setProducts] = useState<Product[]>(SEED_PRODUCTS);
   const [cobroDefaultTab, setCobroDefaultTab] = useState<"monto" | "productos">("monto");
   const [cobroBackScreen, setCobroBackScreen] = useState<AppScreen>("home-productos");
+  const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [celebrateFirst, setCelebrateFirst] = useState(false);
   const [lastCreated, setLastCreated] = useState<Product | null>(null);
@@ -2091,6 +2693,51 @@ export default function App() {
             onBack={() => setScreen(cobroBackScreen)}
             defaultTab={cobroDefaultTab}
             onCreateProduct={goToCreate}
+            onCobrar={(items) => {
+              setCheckoutItems(items);
+              setScreen("cobro-productos");
+            }}
+          />
+        )}
+        {screen === "cobro-productos" && (
+          <ProductosACobrarPage
+            initialItems={checkoutItems}
+            onBack={() => setScreen("cobro")}
+            onClose={() => setScreen("cobro")}
+            onContinue={(updatedItems) => {
+              setCheckoutItems(updatedItems);
+              setScreen("cobro-detalle");
+            }}
+          />
+        )}
+        {screen === "cobro-detalle" && (
+          <DetallePage
+            items={checkoutItems}
+            onBack={() => setScreen("cobro-productos")}
+            onCobrar={() => setScreen("cobro-medios")}
+          />
+        )}
+        {screen === "cobro-medios" && (
+          <MediosDePagoPage
+            items={checkoutItems}
+            onBack={() => setScreen("cobro-detalle")}
+            onDatafono={() => setScreen("cobro-captura")}
+          />
+        )}
+        {screen === "cobro-captura" && (
+          <AcercaInsertaPage
+            total={checkoutItems.reduce((s, i) => s + i.qty * i.unitPrice, 0)}
+            onCancel={() => setScreen("cobro-medios")}
+            onSuccess={() => setScreen("cobro-exitoso")}
+          />
+        )}
+        {screen === "cobro-exitoso" && (
+          <CobroExitosoPage
+            items={checkoutItems}
+            onNuevoCobro={() => {
+              setCheckoutItems([]);
+              setScreen("home-payments");
+            }}
           />
         )}
       </div>
